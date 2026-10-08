@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Memory Match</title>
+    <style>
+      :root {
+        --bg: #f4f7fb;
+        --panel: #ffffff;
+        --primary: #5b6cff;
+        --primary-dark: #3f4dcc;
+        --accent: #ffb703;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --card-back: linear-gradient(135deg, #5b6cff 0%, #7c3aed 100%);
+        --card-front: #f8fafc;
+        --matched: #a7f3d0;
+        --shadow: 0 12px 24px rgba(31, 41, 55, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Arial, Helvetica, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at top, #eef2ff 0%, var(--bg) 45%, #e5e7eb 100%);
+        color: var(--text);
+      }
+
+      .game {
+        width: min(92vw, 640px);
+        background: var(--panel);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+        padding: 24px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 2.8rem);
+      }
+
+      .controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: none;
+        border-radius: 12px;
+        padding: 10px 16px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      .primary-btn {
+        background: var(--primary);
+        color: white;
+        box-shadow: 0 10px 18px rgba(91, 108, 255, 0.25);
+      }
+
+      .primary-btn:hover {
+        background: var(--primary-dark);
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(100px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .stat-card {
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 12px 14px;
+        text-align: center;
+      }
+
+      .label {
+        display: block;
+        color: var(--muted);
+        font-size: 0.78rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .value {
+        display: block;
+        margin-top: 6px;
+        font-size: 1.35rem;
+        font-weight: 700;
+      }
+
+      .status {
+        margin-bottom: 18px;
+        min-height: 24px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      .board {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        perspective: 1000px;
+      }
+
+      .card {
+        position: relative;
+        aspect-ratio: 1 / 1;
+        border: none;
+        background: transparent;
+        padding: 0;
+        cursor: pointer;
+        border-radius: 16px;
+        transform-style: preserve-3d;
+        transition: transform 0.45s ease;
+      }
+
+      .card:focus-visible {
+        outline: 3px solid rgba(91, 108, 255, 0.45);
+        outline-offset: 4px;
+      }
+
+      .card.flipped {
+        transform: rotateY(180deg);
+      }
+
+      .card-face {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 16px;
+        backface-visibility: hidden;
+        user-select: none;
+        font-size: clamp(2rem, 5vw, 3rem);
+        box-shadow: 0 8px 18px rgba(17, 24, 39, 0.12);
+      }
+
+      .card-back {
+        background: var(--card-back);
+        color: white;
+      }
+
+      .card-front {
+        background: var(--card-front);
+        transform: rotateY(180deg);
+      }
+
+      .card.matched .card-front {
+        background: var(--matched);
+      }
+
+      .card.disabled {
+        cursor: default;
+      }
+
+      @media (max-width: 540px) {
+        .game {
+          padding: 18px;
+          border-radius: 18px;
+        }
+
+        .stats {
+          grid-template-columns: repeat(3, minmax(80px, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="game">
+      <div class="topbar">
+        <h1>Memory Match</h1>
+        <div class="controls">
+          <button class="primary-btn" id="restartBtn" type="button">New Game</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <span class="label">Moves</span>
+          <span class="value" id="moves">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="label">Time</span>
+          <span class="value" id="timer">0s</span>
+        </div>
+        <div class="stat-card">
+          <span class="label">Best</span>
+          <span class="value" id="best">—</span>
+        </div>
+      </div>
+
+      <div id="status" class="status">Find all the matching pairs!</div>
+      <section id="board" class="board" aria-label="Memory Match Game Board"></section>
+    </main>
+
+    <script>
+      const board = document.getElementById('board');
+      const movesEl = document.getElementById('moves');
+      const timerEl = document.getElementById('timer');
+      const bestEl = document.getElementById('best');
+      const statusEl = document.getElementById('status');
+      const restartBtn = document.getElementById('restartBtn');
+
+      const symbols = ['🍉', '🍋', '🍇', '🍓', '🍒', '🍊', '🍍', '🍏'];
+      const bestKey = 'memory-match-best';
+
+      let cards = [];
+      let firstCard = null;
+      let secondCard = null;
+      let lockBoard = false;
+      let moves = 0;
+      let matches = 0;
+      let timer = 0;
+      let timerInterval = null;
+      let gameStarted = false;
+
+      function loadBestScore() {
+        const saved = Number(localStorage.getItem(bestKey));
+        bestEl.textContent = Number.isFinite(saved) && saved > 0 ? `${saved}s` : '—';
+      }
+
+      function setStatus(message) {
+        statusEl.textContent = message;
+      }
+
+      function startTimer() {
+        if (timerInterval) return;
+
+        timerInterval = setInterval(() => {
+          timer += 1;
+          timerEl.textContent = `${timer}s`;
+        }, 1000);
+      }
+
+      function stopTimer() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+      }
+
+      function shuffle(array) {
+        const copy = [...array];
+        for (let i = copy.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy;
+      }
+
+      function buildDeck() {
+        const deck = shuffle([...symbols, ...symbols]);
+        cards = deck.map((symbol, index) => ({
+          id: `${symbol}-${index}-${Math.random().toString(16).slice(2)}`,
+          symbol,
+          matched: false,
+        }));
+      }
+
+      function renderBoard() {
+        board.innerHTML = '';
+
+        cards.forEach((card) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'card';
+          button.setAttribute('aria-label', 'Hidden card');
+          button.dataset.symbol = card.symbol;
+          button.dataset.id = card.id;
+
+          const back = document.createElement('span');
+          back.className = 'card-face card-back';
+          back.textContent = '?';
+
+          const front = document.createElement('span');
+          front.className = 'card-face card-front';
+          front.textContent = card.symbol;
+
+          button.append(back, front);
+          button.addEventListener('click', () => handleCardClick(button, card));
+          board.appendChild(button);
+        });
+      }
+
+      function updateMoves() {
+        movesEl.textContent = String(moves);
+      }
+
+      function resetTurn() {
+        firstCard = null;
+        secondCard = null;
+        lockBoard = false;
+      }
+
+      function finishGame() {
+        stopTimer();
+
+        const priorBest = Number(localStorage.getItem(bestKey));
+        if (!Number.isFinite(priorBest) || timer < priorBest || priorBest === 0) {
+          localStorage.setItem(bestKey, String(timer));
+          bestEl.textContent = `${timer}s`;
+        }
+
+        setStatus(`You won in ${moves} moves and ${timer} seconds!`);
+      }
+
+      function handleMatch() {
+        firstCard.matched = true;
+        secondCard.matched = true;
+
+        const firstButton = document.querySelector(`.card[data-id="${firstCard.id}"]`);
+        const secondButton = document.querySelector(`.card[data-id="${secondCard.id}"]`);
+
+        if (firstButton) firstButton.classList.add('matched', 'disabled');
+        if (secondButton) secondButton.classList.add('matched', 'disabled');
+
+        matches += 1;
+
+        if (matches === symbols.length) {
+          finishGame();
+        } else {
+          setStatus('Nice match! Keep going!');
+        }
+
+        resetTurn();
+      }
+
+      function handleMismatch() {
+        setStatus('Not a match. Try again!');
+        setTimeout(() => {
+          firstCardButton?.classList.remove('flipped');
+          secondCardButton?.classList.remove('flipped');
+          resetTurn();
+        }, 700);
+      }
+
+      let firstCardButton = null;
+      let secondCardButton = null;
+
+      function handleCardClick(button, card) {
+        if (lockBoard || button.classList.contains('flipped') || button.classList.contains('matched')) return;
+
+        if (!gameStarted) {
+          gameStarted = true;
+          startTimer();
+        }
+
+        button.classList.add('flipped');
+        button.setAttribute('aria-label', `Revealed ${card.symbol}`);
+
+        if (!firstCard) {
+          firstCard = card;
+          firstCardButton = button;
+          return;
+        }
+
+        secondCard = card;
+        secondCardButton = button;
+        moves += 1;
+        updateMoves();
+        lockBoard = true;
+
+        if (firstCard.symbol === secondCard.symbol) {
+          setTimeout(handleMatch, 300);
+          return;
+        }
+
+        setTimeout(handleMismatch, 500);
+      }
+
+      function resetGame() {
+        stopTimer();
+        timer = 0;
+        moves = 0;
+        matches = 0;
+        firstCard = null;
+        secondCard = null;
+        firstCardButton = null;
+        secondCardButton = null;
+        lockBoard = false;
+        gameStarted = false;
+        timerEl.textContent = '0s';
+        updateMoves();
+        setStatus('Find all the matching pairs!');
+        buildDeck();
+        renderBoard();
+      }
+
+      restartBtn.addEventListener('click', resetGame);
+
+      loadBestScore();
+      resetGame();
+    </script>
+  </body>
+</html>
